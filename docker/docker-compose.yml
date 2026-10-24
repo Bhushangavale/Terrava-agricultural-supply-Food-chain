@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: agrichain-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: agri_supply_chain
+      MYSQL_USER: agrichain_user
+      MYSQL_PASSWORD: agrichain_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - agrichain-network
+
+  # Backend (Spring Boot)
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/backend.Dockerfile
+    container_name: agrichain-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/agri_supply_chain
+      SPRING_DATASOURCE_USERNAME: agrichain_user
+      SPRING_DATASOURCE_PASSWORD: agrichain_pass
+      ETHEREUM_NODE_URL: http://ganache:8545
+    depends_on:
+      - mysql
+    networks:
+      - agrichain-network
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/frontend.Dockerfile
+    container_name: agrichain-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - agrichain-network
+
+  # Ganache (Local Ethereum Blockchain)
+  ganache:
+    image: trufflesuite/ganache-cli:latest
+    container_name: agrichain-ganache
+    ports:
+      - "7545:8545"
+    command: >
+      --deterministic
+      --accounts 10
+      --networkId 5777
+      --gasLimit 10000000
+    networks:
+      - agrichain-network
+
+volumes:
+  mysql_data:
+
+networks:
+  agrichain-network:
+    driver: bridge
